@@ -1,0 +1,1026 @@
+{
+  "name": "Automated Inventory Restocker",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1200,
+        -304
+      ],
+      "id": "310dbf62-2e00-425e-99c7-38abadbda9de",
+      "name": "Telegram Trigger",
+      "webhookId": "ac4e32c1-5c25-44ab-a0ee-f83fe6dbdc5c",
+      "credentials": {
+        "telegramApi": {
+          "id": "9ZJXRruWDJRaQhUP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/restock",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "56b01c44-8edf-48c1-b132-14cac7cd3aee"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -976,
+        -304
+      ],
+      "id": "7728d085-bd25-4f4b-9b46-375595a9dbe8",
+      "name": "Switch",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const text = $json.message.text.trim();\nconst parts = text.split(\" \");\n\nif (parts.length !== 3) {\n  throw new Error(\"Format salah. Gunakan: /restock I001 5\");\n}\n\nreturn {\n  id_item: parts[1],\n  qty: parseInt(parts[2]),\n  telegram_id: $json.message.from.id\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        -304
+      ],
+      "id": "46c2045b-da9b-42f3-829d-673597a81b1b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "89b892ac-eb87-441b-b996-2ad2cd9c68ef",
+              "leftValue": "={{ $node[\"USERS_SHEET\"].json.id_user.toString() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -304,
+        -304
+      ],
+      "id": "5c2c4234-850b-4542-85b0-ce648b4a65ff",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "24375b82-b270-40b6-b2d8-2e140a7e7266",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        144,
+        -400
+      ],
+      "id": "8095628c-6d77-4849-9545-6c2fdba4698f",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8fdb2297-c773-4f3f-9fbb-1e6abe929c4e",
+              "leftValue": "={{ $json.qty }}",
+              "rightValue": "={{ $node[\"Code in JavaScript\"].json.qty }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        592,
+        -496
+      ],
+      "id": "ab04c0d9-8a97-45b0-a6ee-080cec0d8925",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_id }}",
+        "text": "Maaf, ID Telegram Anda belum terdaftar di sistem. Hubungi Admin",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -80,
+        -208
+      ],
+      "id": "dcd8bcae-a53f-4578-9390-26ab8786996a",
+      "name": "Send a text message1",
+      "webhookId": "1bc406b2-745b-4eb9-8584-52392216efce",
+      "credentials": {
+        "telegramApi": {
+          "id": "9ZJXRruWDJRaQhUP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_id }}",
+        "text": "=Item {{ $node[\"ITEMS_SHEET\"].json.id_item }} tidak ditemukan dalam katalog.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        368,
+        -304
+      ],
+      "id": "a5fd8c1b-91bd-4341-83ff-2ab8c2e4d109",
+      "name": "Send a text message2",
+      "webhookId": "ee8e876a-5cb1-4420-9e55-20e5c1bd0291",
+      "credentials": {
+        "telegramApi": {
+          "id": "9ZJXRruWDJRaQhUP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU",
+          "mode": "list",
+          "cachedResultName": "Inventory_IT_Support",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "USERS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "telegram_id",
+              "lookupValue": "={{$json[\"telegram_id\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -528,
+        -304
+      ],
+      "id": "6c1ce4a9-3eeb-4079-8df2-746c883e5f2b",
+      "name": "USERS_SHEET",
+      "credentials": {
+        "googleApi": {
+          "id": "tG1LYAanLeO7c7pp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU",
+          "mode": "list",
+          "cachedResultName": "Inventory_IT_Support",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1085587614,
+          "mode": "list",
+          "cachedResultName": "ITEMS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit#gid=1085587614"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "id_item",
+              "lookupValue": "={{$node[\"Code in JavaScript\"].json[\"id_item\"]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -80,
+        -400
+      ],
+      "id": "70cbf5b2-bdb1-4159-9416-6617edcab7ab",
+      "name": "ITEMS_SHEET",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "tG1LYAanLeO7c7pp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU",
+          "mode": "list",
+          "cachedResultName": "Inventory_IT_Support",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1163313011,
+          "mode": "list",
+          "cachedResultName": "STOCK_GUDANG",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit#gid=1163313011"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "id_item",
+              "lookupValue": "={{ $node[\"Code in JavaScript\"].json.id_item }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        368,
+        -496
+      ],
+      "id": "268e1771-47da-4eac-8e38-744710a847a9",
+      "name": "STOCK_GUDANG_SHEET",
+      "credentials": {
+        "googleApi": {
+          "id": "tG1LYAanLeO7c7pp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=Stok di Gudang tidak cukup. Sisa stok: {{ $json.qty }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        816,
+        -400
+      ],
+      "id": "1de878a0-d76a-41dc-b7ee-6aa1d5d46786",
+      "name": "Send a text message3",
+      "webhookId": "15c5b7a3-71b1-48f1-a767-4022ccc5c0e1",
+      "credentials": {
+        "telegramApi": {
+          "id": "9ZJXRruWDJRaQhUP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU",
+          "mode": "list",
+          "cachedResultName": "Inventory_IT_Support",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1163313011,
+          "mode": "list",
+          "cachedResultName": "STOCK_GUDANG",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit#gid=1163313011"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "qty": "={{ $node[\"STOCK_GUDANG_SHEET\"].json.qty - $node[\"Code in JavaScript\"].json.qty }}",
+            "row_number": "={{ $node[\"STOCK_GUDANG_SHEET\"].json.row_number }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "id_item",
+              "displayName": "id_item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "qty",
+              "displayName": "qty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        816,
+        -592
+      ],
+      "id": "62aeeb26-0d33-4531-9bf9-4db48c5c545f",
+      "name": "UPDATE_STOCK_GUDANG",
+      "credentials": {
+        "googleApi": {
+          "id": "tG1LYAanLeO7c7pp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f56d87e0-6a80-43df-9123-e435e51b0e9e",
+              "leftValue": "={{ Number($json.row_number) || 0 }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1232,
+        -592
+      ],
+      "id": "2e395fdd-c928-4edb-a605-a501ac73de27",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU",
+          "mode": "list",
+          "cachedResultName": "Inventory_IT_Support",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1393581531,
+          "mode": "list",
+          "cachedResultName": "STOCK_USERS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit#gid=1393581531"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "id_user",
+              "lookupValue": "={{ $node[\"USERS_SHEET\"].json.id_user }}"
+            },
+            {
+              "lookupColumn": "id_item",
+              "lookupValue": "={{ $node[\"Code in JavaScript\"].json.id_item }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1024,
+        -592
+      ],
+      "id": "e53ff34d-f909-4560-9e60-50569f8af574",
+      "name": "STOK_USERS",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "tG1LYAanLeO7c7pp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU",
+          "mode": "list",
+          "cachedResultName": "Inventory_IT_Support",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1393581531,
+          "mode": "list",
+          "cachedResultName": "STOCK_USERS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit#gid=1393581531"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $node[\"STOK_USERS\"].json.row_number }}",
+            "qty": "={{ $node[\"STOK_USERS\"].json.qty + $node[\"Code in JavaScript\"].json.qty }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "id_user",
+              "displayName": "id_user",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "id_item",
+              "displayName": "id_item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "qty",
+              "displayName": "qty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        -688
+      ],
+      "id": "8ad6e605-b695-4621-95aa-3bd9d9ed0e9b",
+      "name": "UPDATE_STOCK_USERS",
+      "credentials": {
+        "googleApi": {
+          "id": "tG1LYAanLeO7c7pp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU",
+          "mode": "list",
+          "cachedResultName": "Inventory_IT_Support",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1393581531,
+          "mode": "list",
+          "cachedResultName": "STOCK_USERS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit#gid=1393581531"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id_user": "={{ $node[\"USERS_SHEET\"].json.id_user }}",
+            "id_item": "={{ $node[\"Code in JavaScript\"].json.id_item }}",
+            "qty": "={{ $node[\"Code in JavaScript\"].json.qty }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "id_user",
+              "displayName": "id_user",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "id_item",
+              "displayName": "id_item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "qty",
+              "displayName": "qty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        -496
+      ],
+      "id": "bc91d386-9602-4427-be63-c23fc50c4147",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "tG1LYAanLeO7c7pp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Code in JavaScript\"].json.telegram_id }}",
+        "text": "=✅ RESTOCK BERHASIL!  \n📦 Item: {{ $node[\"Code in JavaScript\"].json.id_item }} \n🔢 Qty: {{ $node[\"Code in JavaScript\"].json.qty }}\n👤 User: {{ $node[\"USERS_SHEET\"].json.nama }} \nSekarang stok Anda telah diperbarui. Terima kasih!",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1856,
+        -688
+      ],
+      "id": "d6870bc0-d218-4dbf-8625-d9665fe3619f",
+      "name": "Send a text message4",
+      "webhookId": "b0598c4f-0be3-4446-b41d-ac9999e09d63",
+      "credentials": {
+        "telegramApi": {
+          "id": "9ZJXRruWDJRaQhUP",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU",
+          "mode": "list",
+          "cachedResultName": "Inventory_IT_Support",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1176965663,
+          "mode": "list",
+          "cachedResultName": "LOG_TRANSAKSI",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vOb2CMUUwhJVKoQqkjpyIV-43WAw27jVO4PQJ4ux9jU/edit#gid=1176965663"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tanggal": "={{ $now }}",
+            "tipe": "RESTOCK",
+            "id_user": "={{ $node[\"USERS_SHEET\"].json.id_user }}",
+            "id_item": "={{ $node[\"Code in JavaScript\"].json.id_item }}",
+            "qty": "={{ $node[\"Code in JavaScript\"].json.qty }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "tanggal",
+              "displayName": "tanggal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipe",
+              "displayName": "tipe",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "id_user",
+              "displayName": "id_user",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "id_item",
+              "displayName": "id_item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "qty",
+              "displayName": "qty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1648,
+        -688
+      ],
+      "id": "23e6e14f-62f9-49c6-8d8b-bde11985e7f7",
+      "name": "LOG_TRANSAKSI",
+      "credentials": {
+        "googleApi": {
+          "id": "tG1LYAanLeO7c7pp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "USERS_SHEET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "ITEMS_SHEET",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "STOCK_GUDANG_SHEET",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "UPDATE_STOCK_GUDANG",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "USERS_SHEET": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ITEMS_SHEET": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STOCK_GUDANG_SHEET": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UPDATE_STOCK_GUDANG": {
+      "main": [
+        [
+          {
+            "node": "STOK_USERS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STOK_USERS": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "UPDATE_STOCK_USERS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UPDATE_STOCK_USERS": {
+      "main": [
+        [
+          {
+            "node": "LOG_TRANSAKSI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "LOG_TRANSAKSI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LOG_TRANSAKSI": {
+      "main": [
+        [
+          {
+            "node": "Send a text message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "718b4bfd-baf6-4c5b-8d35-2d7e889d006f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d86023bcc2d806b7cc8eb7fd092f513cbca64a4421991ef120ba23322b139ecd"
+  },
+  "id": "EEsu7VPRvzNGnftU",
+  "tags": []
+}
