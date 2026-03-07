@@ -1,0 +1,1241 @@
+{
+  "name": "Inventory IT Support - V3 Complete",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "02c00281-ed77-4be4-bbb4-baead177246b",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2384,
+        1168
+      ],
+      "retryOnFail": false,
+      "webhookId": "1fe22aa5-c137-4e4b-bfba-f6b5b3e61844",
+      "credentials": {
+        "telegramApi": {
+          "id": "XGjtsjR1LeDpxsen",
+          "name": "Jembot Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Message — robust version\nconst text = ($json.message && $json.message.text) ? $json.message.text.trim() : \"\";\nconst parts = text.split(/\\s+/);\n\n// raw command: parts[0] may be \"/restock\" or \"/restock@Jembot_Bot\"\nlet rawCmd = (parts[0] || \"\").toLowerCase();\n\n// remove leading slash if present\nif (rawCmd.startsWith(\"/\")) rawCmd = rawCmd.slice(1);\n\n// remove bot mention suffix if present (e.g. \"command@mybot\")\nif (rawCmd.includes(\"@\")) rawCmd = rawCmd.split(\"@\")[0];\n\n// normalize aliases\nlet command = rawCmd;\nif (command === \"cek\" || command === \"stock\" || command === \"stok\") command = \"stock\";\nif (command === \"my\" || command === \"mystock\" || command === \"mystok\") command = \"mystock\";\nif (command === \"return\") command = \"kembali\"; // contoh alias lain\n\nconst id_item = parts.length > 1 ? parts[1].toUpperCase() : null;\nlet qty = null;\nif (parts.length > 2) {\n  const n = parseInt(parts[2], 10);\n  qty = Number.isFinite(n) && n > 0 ? n : null;\n}\n\n// default qty when relevant (e.g. /ambil item -> 1)\nif (command === \"ambil\" && qty === null) qty = 1;\nif (command === \"restock\" && qty === null) qty = 1;\n\n// unknown command if users send message except CRUD command\nconst allowed = ['restock','ambil','stock','mystock','kembali'];\nif (!allowed.includes(command)) command = 'unknown';\n\nreturn [{\n  telegram_id: $json.message.from.id,\n  chat_id: $json.message.chat.id,\n  command,\n  id_item,\n  qty,\n  raw_text: text\n}];"
+      },
+      "id": "8a88edb7-373a-42c8-beac-97903333aa85",
+      "name": "Parse Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2160,
+        1168
+      ],
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, role, is_active FROM users WHERE telegram_id = '{{$json.telegram_id}}';",
+        "options": {}
+      },
+      "id": "09b67c9a-3683-4fef-91ce-7000505b9d79",
+      "name": "Get User Role",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [
+        -1936,
+        1168
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "0074e078-46d4-4948-b00c-fda324f9270b",
+              "leftValue": "=={{ !!$node[\"Get User Role\"].json.id }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "020399e6-af23-4fce-b781-6ed298926214",
+              "leftValue": "=={{ Number($node[\"Get User Role\"].json.is_active || 0) === 1 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "id": "23a909fa-67ff-4de7-974c-cda48e7339db",
+      "name": "If User Active",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1696,
+        1136
+      ],
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node['Parse Message'].json.chat_id}}",
+        "text": "❌ Akses Ditolak. Anda belum terdaftar atau akun non-aktif.",
+        "additionalFields": {}
+      },
+      "id": "c3ae8b97-550d-486c-b9a0-4f24f297d20d",
+      "name": "Send Auth Failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -1472,
+        1248
+      ],
+      "retryOnFail": false,
+      "webhookId": "d2f39302-f2e9-4199-a85f-f4b694b8190c",
+      "credentials": {
+        "telegramApi": {
+          "id": "XGjtsjR1LeDpxsen",
+          "name": "Jembot Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$node[\"Parse Message\"].json.command}}",
+        "rules": {
+          "rules": [
+            {}
+          ]
+        },
+        "fallbackOutput": 3
+      },
+      "id": "485bd14d-dab0-4d44-9895-b67d6c06bb13",
+      "name": "Command Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -2384,
+        2256
+      ],
+      "retryOnFail": false,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{$node['Get User Role'].json.role}}",
+              "rightValue": "admin",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "43e8ce4e-beb3-420e-9087-20d2a913a091",
+      "name": "If Admin (Restock)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1216,
+        640
+      ],
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "START TRANSACTION;\n\nINSERT INTO stock_gudang (item_code, quantity) VALUES ('{{$node['Parse Message'].json.id_item}}', {{$node['Parse Message'].json.qty}}) ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity);\n\nINSERT INTO log_transaksi (user_id, item_code, quantity, tipe, status_transaksi) VALUES ({{$node['Get User Role'].json.id}}, '{{$node['Parse Message'].json.id_item}}', {{$node['Parse Message'].json.qty}}, 'RESTOCK', 'success');\n\nCOMMIT;",
+        "options": {}
+      },
+      "id": "c781ef4e-5748-49d6-b79b-dcac892350e2",
+      "name": "Restock (Add to Gudang)",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        640
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node['Parse Message'].json.chat_id}}",
+        "text": "=✅ Restock berhasil. Stok {{$node['Parse Message'].json.id_item}} bertambah sebanyak {{$node['Parse Message'].json.qty}}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "ddb4cece-b3b1-461b-b8b4-7fcfa53ba157",
+      "name": "Telegram Restock Success",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -768,
+        640
+      ],
+      "retryOnFail": false,
+      "webhookId": "a336b358-42f0-4fb7-9d61-4e917dae13d9",
+      "credentials": {
+        "telegramApi": {
+          "id": "XGjtsjR1LeDpxsen",
+          "name": "Jembot Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "START TRANSACTION;\n\n-- 1. Try to reduce stock only if sufficient (Atomic)\nUPDATE stock_gudang \nSET quantity = quantity - {{$node['Parse Message'].json.qty}} \nWHERE item_code = '{{$node['Parse Message'].json.id_item}}' AND quantity >= {{$node['Parse Message'].json.qty}};\n\n-- 2. Verify if UPDATE was successful using ROW_COUNT()\nSELECT ROW_COUNT() as affected_rows;",
+        "options": {}
+      },
+      "id": "6c816ca4-ce54-442c-bf90-c99224d0a64b",
+      "name": "Ambil (Atomic Query)",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [
+        -1056,
+        1008
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{$json.affected_rows}}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "41dd8364-1612-4fc7-b92d-9d6d083d2ea6",
+      "name": "If Ambil Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -832,
+        1008
+      ],
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO stock_users (user_id, item_code, quantity) VALUES ({{$node['Get User Role'].json.id}}, '{{$node['Parse Message'].json.id_item}}', {{$node['Parse Message'].json.qty}}) ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity);\n\nINSERT INTO log_transaksi (user_id, item_code, quantity, tipe, status_transaksi) VALUES ({{$node['Get User Role'].json.id}}, '{{$node['Parse Message'].json.id_item}}', {{$node['Parse Message'].json.qty}}, 'AMBIL', 'success');\n\nCOMMIT;",
+        "options": {}
+      },
+      "id": "f772be3c-3c30-4955-a0f6-f79b129b0439",
+      "name": "Commit Ambil",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [
+        -608,
+        992
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ROLLBACK;",
+        "options": {}
+      },
+      "id": "5d4559eb-2687-4b43-bfcc-3d34754c401d",
+      "name": "Rollback Ambil",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        1168
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node['Parse Message'].json.chat_id}}",
+        "text": "=✅ Berhasil mengambil {{$node['Parse Message'].json.qty}} unit {{$node['Parse Message'].json.id_item}}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "87f388bd-2b2a-4fd8-9bef-c97b939d6ac8",
+      "name": "Telegram Ambil Success",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        992
+      ],
+      "retryOnFail": false,
+      "webhookId": "8ca1d34b-1623-4894-907a-fc3a12c55e39",
+      "credentials": {
+        "telegramApi": {
+          "id": "XGjtsjR1LeDpxsen",
+          "name": "Jembot Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node['Parse Message'].json.chat_id}}",
+        "text": "=❌ Gagal mengambil. Stok {{$node['Parse Message'].json.id_item}} tidak mencukupi atau item tidak ada.",
+        "additionalFields": {}
+      },
+      "id": "edbab27e-7ff9-41f7-b5f7-9f8dc548609a",
+      "name": "Telegram Ambil Fail",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        1168
+      ],
+      "retryOnFail": false,
+      "webhookId": "4de75ff2-1f65-43de-bf40-02cd89d20d35",
+      "credentials": {
+        "telegramApi": {
+          "id": "XGjtsjR1LeDpxsen",
+          "name": "Jembot Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT item_code, quantity FROM stock_gudang WHERE quantity > 0;",
+        "options": {}
+      },
+      "id": "f33a421e-60d8-4bb7-8cb6-f460710a5a23",
+      "name": "Get Stock Gudang",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [
+        -1216,
+        832
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let text = '📦 *Daftar Stok Gudang Saat Ini*\\n\\n';\nif (!$input.all()[0].json.item_code) {\n  return [{text: '⚠️ Gudang kosong.'}];\n}\nfor (const item of $input.all()) {\n  text += `- ${item.json.item_code}: ${item.json.quantity} unit\\n`;\n}\nreturn [{ text }];"
+      },
+      "id": "a8bef2d6-2dc5-4c7c-bba7-f377ac3bdee6",
+      "name": "Format Stock Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        832
+      ],
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node['Parse Message'].json.chat_id}}",
+        "text": "={{$json.text}}",
+        "additionalFields": {}
+      },
+      "id": "8b4981f0-084e-42e6-b797-c54890fd0dc5",
+      "name": "Telegram Stock",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -768,
+        832
+      ],
+      "retryOnFail": false,
+      "webhookId": "37d6ce2d-01f9-4529-829d-70f2e17942ae",
+      "credentials": {
+        "telegramApi": {
+          "id": "XGjtsjR1LeDpxsen",
+          "name": "Jembot Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT item_code, quantity FROM stock_users WHERE user_id = {{$node['Get User Role'].json.id}} AND quantity > 0;",
+        "options": {}
+      },
+      "id": "3b7aa09a-65cf-4666-8100-7927dfdbc598",
+      "name": "Get User Stock",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [
+        -1232,
+        1184
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let text = '🎒 *Barang IT di Tangan Anda*\\n\\n';\nif (!$input.all()[0].json.item_code) {\n  return [{text: '⚠️ Anda tidak memegang barang IT apapun saat ini.'}];\n}\nfor (const item of $input.all()) {\n  text += `- ${item.json.item_code}: ${item.json.quantity} unit\\n`;\n}\nreturn [{ text }];"
+      },
+      "id": "4c941663-20dc-4083-bbfc-9f9d10a30d4f",
+      "name": "Format MyStock Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1008,
+        1184
+      ],
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node['Parse Message'].json.chat_id}}",
+        "text": "={{$json.text}}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "2b2bb383-3667-433a-ad6b-a8d696ccc6cb",
+      "name": "Telegram MyStock",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -784,
+        1184
+      ],
+      "retryOnFail": false,
+      "webhookId": "b40ce3b4-6475-48bc-806e-6ca74d65eada",
+      "credentials": {
+        "telegramApi": {
+          "id": "XGjtsjR1LeDpxsen",
+          "name": "Jembot Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{$node['Get User Role'].json.role}}",
+              "rightValue": "admin",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e7034a9b-a781-4e24-bb7a-f45fae2e642e",
+      "name": "If Admin (Log)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2384,
+        1744
+      ],
+      "retryOnFail": false,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.name, l.item_code, l.quantity, l.tipe, DATE_FORMAT(l.created_at, '%Y-%m-%d %H:%i') as waktu FROM log_transaksi l JOIN users u ON l.user_id = u.id ORDER BY l.id DESC LIMIT 10;",
+        "options": {}
+      },
+      "id": "ef841bc8-77d2-4a6f-8078-d9ef03c30ada",
+      "name": "Get Last 10 Logs",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [
+        -2160,
+        1744
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "let text = '📜 *10 Transaksi Terakhir*\\n\\n';\nif (!$input.all()[0].json.item_code) {\n  return [{text: '⚠️ Belum ada log transaksi.'}];\n}\nfor (const item of $input.all()) {\n  text += `[${item.json.waktu}] ${item.json.name} -> ${item.json.tipe} ${item.json.quantity}x ${item.json.item_code}\\n`;\n}\nreturn [{ text }];"
+      },
+      "id": "49c19acf-09a9-444d-af7c-5fc906dca6fa",
+      "name": "Format Log Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1936,
+        1744
+      ],
+      "retryOnFail": false,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node['Parse Message'].json.chat_id}}",
+        "text": "={{$json.text}}",
+        "additionalFields": {}
+      },
+      "id": "80ffe529-97ef-4393-bb2f-d0221a0cfd19",
+      "name": "Telegram Log",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -1712,
+        1744
+      ],
+      "retryOnFail": false,
+      "webhookId": "872127ad-b0d1-46fa-93ca-b0b832b04fed",
+      "credentials": {
+        "telegramApi": {
+          "id": "XGjtsjR1LeDpxsen",
+          "name": "Jembot Bot"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "START TRANSACTION;\n\nUPDATE stock_users \nSET quantity = quantity - {{$node['Parse Message'].json.qty}} \nWHERE user_id = {{$node['Get User Role'].json.id}} AND item_code = '{{$node['Parse Message'].json.id_item}}' AND quantity >= {{$node['Parse Message'].json.qty}};\n\nSELECT ROW_COUNT() as affected_rows;",
+        "options": {}
+      },
+      "id": "2c7f9296-1c42-4f26-8722-ddf03b79177f",
+      "name": "Kembalikan (Atomic)",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [
+        -2384,
+        2640
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{$json.affected_rows}}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e4e8b748-7eae-4f32-bba3-67f241aa80cb",
+      "name": "If Kembalikan Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2160,
+        2640
+      ],
+      "retryOnFail": false,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE stock_gudang SET quantity = quantity + {{$node['Parse Message'].json.qty}} WHERE item_code = '{{$node['Parse Message'].json.id_item}}';\n\nINSERT INTO log_transaksi (user_id, item_code, quantity, tipe, status_transaksi) VALUES ({{$node['Get User Role'].json.id}}, '{{$node['Parse Message'].json.id_item}}', {{$node['Parse Message'].json.qty}}, 'KEMBALIKAN', 'success');\n\nCOMMIT;",
+        "options": {}
+      },
+      "id": "8f587a38-9346-432b-9803-db8a86281bc4",
+      "name": "Commit Kembalikan",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [
+        -1936,
+        2544
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "ROLLBACK;",
+        "options": {}
+      },
+      "id": "c616ed88-6723-425e-96c2-998cd021f6b6",
+      "name": "Rollback Kembalikan",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [
+        -1936,
+        2736
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node['Parse Message'].json.chat_id}}",
+        "text": "=✅ Berhasil ngembaliin {{$node['Parse Message'].json.qty}} unit {{$node['Parse Message'].json.id_item}} ke gudang.",
+        "additionalFields": {}
+      },
+      "id": "14cbbfb6-a61a-4a71-abe2-fe7fba5f9e84",
+      "name": "Telegram Kbl Success",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -1712,
+        2544
+      ],
+      "retryOnFail": false,
+      "webhookId": "26d7fd52-dbc0-4ee8-a07e-285ba25efac8",
+      "credentials": {
+        "telegramApi": {
+          "id": "XGjtsjR1LeDpxsen",
+          "name": "Jembot Bot"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node['Parse Message'].json.chat_id}}",
+        "text": "=❌ Gagal. Anda tidak punya stok {{$node['Parse Message'].json.id_item}} sebanyak itu.",
+        "additionalFields": {}
+      },
+      "id": "fa19d175-5286-4ad9-98c7-ce788bc9ccae",
+      "name": "Telegram Kbl Fail",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -1712,
+        2736
+      ],
+      "retryOnFail": false,
+      "webhookId": "ef35ee0f-bebb-4a88-807f-75e3df65a478",
+      "credentials": {
+        "telegramApi": {
+          "id": "XGjtsjR1LeDpxsen",
+          "name": "Jembot Bot"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$node[\"Parse Message\"].json.command}}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "restock"
+            },
+            {
+              "value2": "stock",
+              "output": 1
+            },
+            {
+              "value2": "ambil",
+              "output": 2
+            },
+            {
+              "value2": "mystock",
+              "output": 3
+            },
+            {
+              "value2": "asda",
+              "output": 3
+            }
+          ]
+        }
+      },
+      "id": "05fb3b06-648d-4472-93a9-18237b9c0202",
+      "name": "Command Router1",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -2384,
+        1968
+      ],
+      "retryOnFail": false,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$node[\"Parse Message\"].json.command}}",
+                    "rightValue": "restock",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "942cd73f-9b5a-4336-8b22-07aac5c44213"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ce6eb1da-1bfe-4db8-a845-6c3ed6f646b3",
+                    "leftValue": "={{$node[\"Parse Message\"].json.command}}",
+                    "rightValue": "stock",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c27f6532-4aca-4123-8189-c84adf5c3707",
+                    "leftValue": "={{$node[\"Parse Message\"].json.command}}",
+                    "rightValue": "ambil",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "68b78f05-d30d-4a63-920b-b5487b252ef5",
+                    "leftValue": "={{$node[\"Parse Message\"].json.command}}",
+                    "rightValue": "mystock",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b80db2ff-aff8-4eaf-bb83-447b04bf8c0f",
+                    "leftValue": "={{$node[\"Parse Message\"].json.command}}",
+                    "rightValue": "unknown",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none",
+          "ignoreCase": false,
+          "allMatchingOutputs": false
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -1472,
+        960
+      ],
+      "id": "582ff48a-b2b7-4528-a937-729ae4d1cbd6",
+      "name": "Command Router2",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node['Parse Message'].json.chat_id}}",
+        "text": "=Command tidak dikenal.\nGunakan salah satu perintah berikut: \n/restock <item> <qty> (Cth : /restock MOUSE 3)\n/ambil <item> <qty> (Cth : /restock MOUSE 3)\n/stock \n/mystock\n\nKeterangan : \n/restock = untuk menambahkan barang ke gudang (fitur khusus admin)\n/ambil   = untuk menambahkan stock barang dari gudang ke user\n/stock   = melihat ketersediaan stock gudang saat ini\n/mystock = melihat ketersediaan stock user yang saat ini disimpan",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1200,
+        1392
+      ],
+      "id": "f7ce623b-e1c4-4ff9-8130-6dec7d12cba2",
+      "name": "Telegram Send Message (Unknown Command)",
+      "webhookId": "afa6c05e-6f8c-4bc7-9e51-b266cc5e1942",
+      "credentials": {
+        "telegramApi": {
+          "id": "XGjtsjR1LeDpxsen",
+          "name": "Jembot Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Message": {
+      "main": [
+        [
+          {
+            "node": "Get User Role",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User Role": {
+      "main": [
+        [
+          {
+            "node": "If User Active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If User Active": {
+      "main": [
+        [
+          {
+            "node": "Command Router2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Auth Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Command Router": {
+      "main": [
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    "If Admin (Restock)": {
+      "main": [
+        [
+          {
+            "node": "Restock (Add to Gudang)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restock (Add to Gudang)": {
+      "main": [
+        [
+          {
+            "node": "Telegram Restock Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil (Atomic Query)": {
+      "main": [
+        [
+          {
+            "node": "If Ambil Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Ambil Success": {
+      "main": [
+        [
+          {
+            "node": "Commit Ambil",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rollback Ambil",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit Ambil": {
+      "main": [
+        [
+          {
+            "node": "Telegram Ambil Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rollback Ambil": {
+      "main": [
+        [
+          {
+            "node": "Telegram Ambil Fail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Stock Gudang": {
+      "main": [
+        [
+          {
+            "node": "Format Stock Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Stock Text": {
+      "main": [
+        [
+          {
+            "node": "Telegram Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User Stock": {
+      "main": [
+        [
+          {
+            "node": "Format MyStock Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format MyStock Text": {
+      "main": [
+        [
+          {
+            "node": "Telegram MyStock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Admin (Log)": {
+      "main": [
+        [
+          {
+            "node": "Get Last 10 Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last 10 Logs": {
+      "main": [
+        [
+          {
+            "node": "Format Log Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Log Text": {
+      "main": [
+        [
+          {
+            "node": "Telegram Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kembalikan (Atomic)": {
+      "main": [
+        [
+          {
+            "node": "If Kembalikan Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Kembalikan Success": {
+      "main": [
+        [
+          {
+            "node": "Commit Kembalikan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rollback Kembalikan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit Kembalikan": {
+      "main": [
+        [
+          {
+            "node": "Telegram Kbl Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rollback Kembalikan": {
+      "main": [
+        [
+          {
+            "node": "Telegram Kbl Fail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Command Router2": {
+      "main": [
+        [
+          {
+            "node": "If Admin (Restock)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Stock Gudang",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ambil (Atomic Query)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get User Stock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram Send Message (Unknown Command)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Send Message (Unknown Command)": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "e60041fa-fbea-487a-bc10-c9f6a342e7ad",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cb09c41ae337aa3d0c5f4b2ceeea66db5dac23bb7b83c1a997bc902a5109156a"
+  },
+  "id": "mfv3qz9Ws6btXTHS",
+  "tags": []
+}
