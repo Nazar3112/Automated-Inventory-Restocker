@@ -123,28 +123,6 @@
     },
     {
       "parameters": {
-        "dataType": "string",
-        "value1": "={{$node[\"Parse Message\"].json.command}}",
-        "rules": {
-          "rules": [
-            {}
-          ]
-        },
-        "fallbackOutput": 3
-      },
-      "id": "3b7324a2-02a1-4bbc-9a82-c206d70e4e50",
-      "name": "Command Router",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 1,
-      "position": [
-        -1168,
-        1616
-      ],
-      "retryOnFail": false,
-      "disabled": true
-    },
-    {
-      "parameters": {
         "conditions": {
           "conditions": [
             {
@@ -218,98 +196,6 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "START TRANSACTION;\n\n-- 1. Try to reduce stock only if sufficient (Atomic)\nUPDATE stock_gudang \nSET quantity = quantity - {{$node['Parse Message'].json.qty}} \nWHERE item_code = '{{$node['Parse Message'].json.id_item}}' AND quantity >= {{$node['Parse Message'].json.qty}};\n\n-- 2. Verify if UPDATE was successful using ROW_COUNT()\nSELECT ROW_COUNT() as affected_rows;",
-        "options": {}
-      },
-      "id": "aca4e0a3-d820-47d1-af29-be1d714e9043",
-      "name": "Ambil (Atomic Query)",
-      "type": "n8n-nodes-base.mySql",
-      "typeVersion": 2,
-      "position": [
-        160,
-        368
-      ],
-      "retryOnFail": false,
-      "credentials": {
-        "mySql": {
-          "id": "18YytLRcaee9SjCu",
-          "name": "Inventory DB v.2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "leftValue": "={{$json.affected_rows}}",
-              "rightValue": 1,
-              "operator": {
-                "type": "number",
-                "operation": "equals"
-              }
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "edd307f9-1277-441f-b3bf-2a508e6160c6",
-      "name": "If Ambil Success",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        384,
-        368
-      ],
-      "retryOnFail": false
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO stock_users (user_id, item_code, quantity) VALUES ({{$node['Get User Role'].json.id}}, '{{$node['Parse Message'].json.id_item}}', {{$node['Parse Message'].json.qty}}) ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity);\n\nINSERT INTO log_transaksi (user_id, item_code, quantity, tipe, status_transaksi) VALUES ({{$node['Get User Role'].json.id}}, '{{$node['Parse Message'].json.id_item}}', {{$node['Parse Message'].json.qty}}, 'AMBIL', 'success');\n\nCOMMIT;",
-        "options": {}
-      },
-      "id": "75c24200-c75e-4fdd-92ee-b90f76a97918",
-      "name": "Commit Ambil",
-      "type": "n8n-nodes-base.mySql",
-      "typeVersion": 2,
-      "position": [
-        608,
-        352
-      ],
-      "retryOnFail": false,
-      "credentials": {
-        "mySql": {
-          "id": "18YytLRcaee9SjCu",
-          "name": "Inventory DB v.2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "ROLLBACK;",
-        "options": {}
-      },
-      "id": "3d0b9050-6ae1-4696-8cad-7ad1aa8c1d46",
-      "name": "Rollback Ambil",
-      "type": "n8n-nodes-base.mySql",
-      "typeVersion": 2,
-      "position": [
-        656,
-        528
-      ],
-      "retryOnFail": false,
-      "credentials": {
-        "mySql": {
-          "id": "18YytLRcaee9SjCu",
-          "name": "Inventory DB v.2"
-        }
-      }
-    },
-    {
-      "parameters": {
         "chatId": "={{$node['Parse Message'].json.chat_id}}",
         "text": "=✅ Berhasil mengambil {{$node['Parse Message'].json.qty}} unit {{$node['Parse Message'].json.id_item}}",
         "additionalFields": {
@@ -321,7 +207,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
       "position": [
-        816,
+        704,
         352
       ],
       "retryOnFail": false,
@@ -344,7 +230,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
       "position": [
-        864,
+        704,
         528
       ],
       "retryOnFail": false,
@@ -576,8 +462,8 @@
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2,
       "position": [
-        -1168,
-        2000
+        -112,
+        1136
       ],
       "retryOnFail": false,
       "credentials": {
@@ -609,8 +495,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -944,
-        2000
+        112,
+        1136
       ],
       "retryOnFail": false,
       "disabled": true
@@ -626,8 +512,8 @@
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2,
       "position": [
-        -720,
-        1904
+        336,
+        1040
       ],
       "retryOnFail": false,
       "credentials": {
@@ -649,8 +535,8 @@
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2,
       "position": [
-        -720,
-        2096
+        336,
+        1232
       ],
       "retryOnFail": false,
       "credentials": {
@@ -672,8 +558,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
       "position": [
-        -496,
-        1904
+        560,
+        1040
       ],
       "retryOnFail": false,
       "webhookId": "26d7fd52-dbc0-4ee8-a07e-285ba25efac8",
@@ -696,8 +582,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
       "position": [
-        -496,
-        2096
+        560,
+        1232
       ],
       "retryOnFail": false,
       "webhookId": "ef35ee0f-bebb-4a88-807f-75e3df65a478",
@@ -707,45 +593,6 @@
           "name": "Jembot Bot"
         }
       },
-      "disabled": true
-    },
-    {
-      "parameters": {
-        "dataType": "string",
-        "value1": "={{$node[\"Parse Message\"].json.command}}",
-        "rules": {
-          "rules": [
-            {
-              "value2": "restock"
-            },
-            {
-              "value2": "stock",
-              "output": 1
-            },
-            {
-              "value2": "ambil",
-              "output": 2
-            },
-            {
-              "value2": "mystock",
-              "output": 3
-            },
-            {
-              "value2": "asda",
-              "output": 3
-            }
-          ]
-        }
-      },
-      "id": "35f35bc7-7c2e-4e1e-a33d-1e65a445d975",
-      "name": "Command Router1",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 1,
-      "position": [
-        -1168,
-        1328
-      ],
-      "retryOnFail": false,
       "disabled": true
     },
     {
@@ -907,6 +754,61 @@
           "name": "Jembot Bot"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CALL proc_ambil_item(\n{{ $node[\"Get User Role\"].json.id }},\n'{{ $node[\"Parse Message\"].json.id_item }}',\n{{ $node[\"Parse Message\"].json.qty }},\n@ok\n);\nSELECT @ok AS success;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        32,
+        368
+      ],
+      "id": "a8cb78ad-948f-4f11-854a-1d079671aed6",
+      "name": "Call Proc Ambil Item",
+      "credentials": {
+        "mySql": {
+          "id": "18YytLRcaee9SjCu",
+          "name": "Inventory DB v.2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $node[\"Call Proc Ambil Item\"].json.success }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              },
+              "id": "d0681de3-e1ef-438a-9cad-4efc352c1d1c"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "796c2bba-c339-4576-b3e6-2fbbda52e379",
+      "name": "If Ambil Success1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        256,
+        368
+      ],
+      "retryOnFail": false
     }
   ],
   "pinData": {},
@@ -978,57 +880,6 @@
         [
           {
             "node": "Telegram Restock Success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ambil (Atomic Query)": {
-      "main": [
-        [
-          {
-            "node": "If Ambil Success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If Ambil Success": {
-      "main": [
-        [
-          {
-            "node": "Commit Ambil",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Rollback Ambil",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Commit Ambil": {
-      "main": [
-        [
-          {
-            "node": "Telegram Ambil Success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Rollback Ambil": {
-      "main": [
-        [
-          {
-            "node": "Telegram Ambil Fail",
             "type": "main",
             "index": 0
           }
@@ -1181,7 +1032,7 @@
         ],
         [
           {
-            "node": "Ambil (Atomic Query)",
+            "node": "Call Proc Ambil Item",
             "type": "main",
             "index": 0
           }
@@ -1201,6 +1052,35 @@
           }
         ]
       ]
+    },
+    "Call Proc Ambil Item": {
+      "main": [
+        [
+          {
+            "node": "If Ambil Success1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Ambil Success1": {
+      "main": [
+        [
+          {
+            "node": "Telegram Ambil Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram Ambil Fail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -1209,7 +1089,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "8a02f73a-41a0-459f-acbb-b4291398fc98",
+  "versionId": "73220bb5-b0b5-4af7-97ad-24b56f71f165",
   "meta": {
     "instanceId": "cb09c41ae337aa3d0c5f4b2ceeea66db5dac23bb7b83c1a997bc902a5109156a"
   },
