@@ -1,0 +1,2000 @@
+{
+    "nodes": [
+        {
+            "parameters": {
+                "jsCode": "const updateType = $json.message ? 'message' : ($json.callback_query ? 'callback_query' : 'unknown');\nlet telegram_id, chat_id, text, callback_data;\n\nif (updateType === 'message') {\n  telegram_id = $json.message.from.id;\n  chat_id = $json.message.chat.id;\n  text = $json.message.text ? $json.message.text.trim() : '';\n  } \n    else if (updateType === 'callback_query') {\n    telegram_id = $json.callback_query.from.id;\n    chat_id = $json.callback_query.message.chat.id;\n    callback_data = $json.callback_query.data;\n  }\n\nreturn [{\n  updateType,\n  telegram_id,\n  chat_id,\n  text,\n  callback_data,\n  raw_payload: $json\n}];"
+            },
+            "id": "67cbc6ba-d59a-4390-a63e-246b93139e3f",
+            "name": "Normalize Payload",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -4912,
+                5824
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT u.id, u.name, u.role, u.is_active, s.current_state, s.state_data \nFROM users u \nLEFT JOIN bot_user_states s ON u.telegram_id = s.telegram_id \nWHERE u.telegram_id = '{{$json.telegram_id}}';",
+                "options": {}
+            },
+            "id": "9336aaff-0d0d-484e-bc2c-0c2eda812ba4",
+            "name": "Get User & State",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -4688,
+                5824
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            },
+            "onError": "continueErrorOutput"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "loose",
+                        "version": 1
+                    },
+                    "conditions": [
+                        {
+                            "id": "1",
+                            "leftValue": "={{$items(\"Get User & State\").length > 0 && !!$items(\"Get User & State\")[0].json.id && Number($items(\"Get User & State\")[0].json.is_active || 0) === 1}}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {
+                    "looseTypeValidation": true
+                }
+            },
+            "id": "534f18e7-cd40-418b-99fb-f9468c6f214d",
+            "name": "If Active User",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                -4464,
+                5824
+            ]
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Get User & State\"].json.current_state}}",
+                                        "rightValue": "={{null}}",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "notEquals"
+                                        }
+                                    },
+                                    {
+                                        "id": "2",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.updateType}}",
+                                        "rightValue": "message",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    },
+                                    {
+                                        "id": "3",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "notStartsWith"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Get User & State\"].json.role}}",
+                                        "rightValue": "admin",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Get User & State\"].json.role}}",
+                                        "rightValue": "staff",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "e00bc8d6-66d2-44b5-ad7b-b432dae2695b",
+            "name": "Route by State / Role",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -4240,
+                5696
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "768394a0-209c-44a2-b9ae-e85fffa10855",
+            "name": "Trigger Setup - Route 1: State Handler",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                -4016,
+                4944
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "b3982a63-8051-4308-9981-67f61deb4084",
+            "name": "Trigger Setup - Route 2: Admin Flow",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                -4016,
+                5712
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "4d661ad4-7ae9-40a3-b042-94e1a6e5b8c7",
+            "name": "Trigger Setup - Route 3: Staff Flow",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                -4016,
+                6576
+            ]
+        },
+        {
+            "parameters": {
+                "updates": [
+                    "message",
+                    "callback_query"
+                ],
+                "additionalFields": {}
+            },
+            "id": "9b127415-9fad-48d9-8880-271cc350b765",
+            "name": "Telegram Trigger1",
+            "type": "n8n-nodes-base.telegramTrigger",
+            "typeVersion": 1,
+            "position": [
+                -5136,
+                5824
+            ],
+            "webhookId": "c48a6c93-b38a-4435-b42b-87b82e6aa538",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{$node['Normalize Payload'].json.chat_id}}",
+                "text": "\u274c Akses Ditolak. Anda belum terdaftar atau akun non-aktif.",
+                "additionalFields": {}
+            },
+            "id": "d4af4a5b-381e-4b37-9cdc-65b46eaeecba",
+            "name": "Send Auth Failed1",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -4240,
+                5920
+            ],
+            "webhookId": "89c8cc69-4d7c-4dba-a1ed-e8cde8be37f1",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/stock",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/users",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/history",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/so",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/cancel",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.updateType}}",
+                                        "rightValue": "callback_query",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "0a4e3bf1-5c6a-40bb-826b-e85c5c63030e",
+            "name": "Route Command/Callback",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -3792,
+                5664
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT item_code, kode_barang, name_item, quantity, min_threshold FROM stock_gudang LIMIT 30 OFFSET 0;",
+                "options": {}
+            },
+            "id": "580eccdf-633d-4112-ba09-9f205b1801f3",
+            "name": "MySQL: Get Stock Page 1",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -3568,
+                5328
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "let text = '\ud83d\udce6 *Daftar Stok Gudang (Page 1)*\\n\\n```\\n';\ntext += 'No | Kode Barang  | Nama Barang         | Qty\\n';\ntext += '---+--------------+---------------------+-----\\n';\nif ($input.all().length === 0 || !$input.all()[0].json.item_code) {\n  text = '\u26a0\ufe0f Gudang kosong.';\n} else {\n  let num = 1;\n  for (const item of $input.all()) {\n    let id = num.toString().padEnd(2, ' ');\n    let code = (item.json.item_code || '-').substring(0, 12).padEnd(12, ' ');\n    let name = (item.json.name_item || '-').substring(0, 19).padEnd(19, ' ');\n    let qty = (item.json.quantity || 0).toString().padStart(4, ' ');\n    \n    text += `${id} | ${code} | ${name} | ${qty}\\n`;\n    num++;\n  }\n  text += '```';\n}\n\nreturn [{\n  chat_id: $node[\"Normalize Payload\"].json.chat_id,\n  text: text,\n  reply_markup: {\n    inline_keyboard: [\n      [\n        { text: \"\u2b05\ufe0f Prev\", callback_data: \"admin_stock_page_0\" },\n        { text: \"Next \u27a1\ufe0f\", callback_data: \"admin_stock_page_2\" }\n      ],\n      [\n        { text: \"\u2795 Add Item\", callback_data: \"admin_add_item\" },\n        { text: \"\u270f\ufe0f Edit Item\", callback_data: \"admin_edit_item\" },\n        { text: \"\u274c Delete Item\", callback_data: \"admin_delete_item\" }\n      ]\n    ]\n  }\n}];"
+            },
+            "id": "c5bb701f-6fdd-482b-afc7-f14c2aba6bc8",
+            "name": "Format /stock msg",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -3344,
+                5328
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{$json.chat_id}}",
+                "text": "={{$json.text}}",
+                "replyMarkup": "inlineKeyboard",
+                "inlineKeyboard": {
+                    "rows": [
+                        {
+                            "row": {
+                                "buttons": [
+                                    {
+                                        "text": "={{ $json.reply_markup.inline_keyboard[0][0].text }}",
+                                        "additionalFields": {
+                                            "callback_data": "={{ $json.reply_markup.inline_keyboard[0][0].callback_data }}"
+                                        }
+                                    },
+                                    {
+                                        "text": "={{ $json.reply_markup.inline_keyboard[0][1].text }}",
+                                        "additionalFields": {
+                                            "callback_data": "={{ $json.reply_markup.inline_keyboard[0][1].callback_data }}"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "row": {
+                                "buttons": [
+                                    {
+                                        "text": "={{ $json.reply_markup.inline_keyboard[1][0].text }}",
+                                        "additionalFields": {
+                                            "callback_data": "={{ $json.reply_markup.inline_keyboard[1][0].callback_data }}"
+                                        }
+                                    },
+                                    {
+                                        "text": "={{ $json.reply_markup.inline_keyboard[1][1].text }}",
+                                        "additionalFields": {
+                                            "callback_data": "={{ $json.reply_markup.inline_keyboard[1][1].callback_data }}"
+                                        }
+                                    },
+                                    {
+                                        "text": "={{ $json.reply_markup.inline_keyboard[1][2].text }}",
+                                        "additionalFields": {
+                                            "callback_data": "={{ $json.reply_markup.inline_keyboard[1][2].callback_data }}"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
+            },
+            "id": "02469ac4-8f15-436a-88ab-864cb18b7641",
+            "name": "Send /stock Msg",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3120,
+                5328
+            ],
+            "webhookId": "29bfe63b-000d-4146-9904-389a38ad9ddc",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT id, telegram_id, name, role, is_active, created_at FROM users LIMIT 20 OFFSET 0;",
+                "options": {}
+            },
+            "id": "0540287f-37f8-4551-8c5a-e3fd5a44d2af",
+            "name": "MySQL: Get Users Page 1",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -3568,
+                5520
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "let text = '\ud83d\udc65 *Daftar Users (Page 1)*\\n\\n```\\n';\ntext += 'No | Nama User          | Role  | Act\\n';\ntext += '---+--------------------+-------+----\\n';\nif ($input.all().length === 0 || !$input.all()[0].json.id) {\n  text = '\u26a0\ufe0f Belum ada user terdaftar.';\n} else {\n  let num = 1;\n  for (const item of $input.all()) {\n    let id = num.toString().padEnd(2, ' ');\n    let name = (item.json.name || '-').substring(0, 18).padEnd(18, ' ');\n    let role = (item.json.role || '-').substring(0, 5).padEnd(5, ' ');\n    let act = (item.json.is_active || 0).toString().padStart(3, ' ');\n    \n    text += `${id} | ${name} | ${role} | ${act}\\n`;\n    num++;\n  }\n  text += '```';\n}\n\nreturn [{\n  chat_id: $node[\"Normalize Payload\"].json.chat_id,\n  text: text,\n  reply_markup: {\n    inline_keyboard: [\n      [\n        { text: \"\u2b05\ufe0f Prev\", callback_data: \"admin_user_page_0\" },\n        { text: \"Next \u27a1\ufe0f\", callback_data: \"admin_user_page_2\" }\n      ],\n      [\n        { text: \"\u2795 Add User\", callback_data: \"admin_add_user\" },\n        { text: \"\u270f\ufe0f Edit User\", callback_data: \"admin_edit_user\" },\n        { text: \"\u274c Delete User\", callback_data: \"admin_delete_user\" }\n      ]\n    ]\n  }\n}];"
+            },
+            "id": "5ad22fb4-1314-41a5-8ae8-9e09c138381d",
+            "name": "Format /users msg",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -3344,
+                5520
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{$json.chat_id}}",
+                "text": "={{$json.text}}",
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
+            },
+            "id": "5a3d8164-0c6a-4e31-b4f9-3a121d0a808e",
+            "name": "Send /users Msg",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3120,
+                5520
+            ],
+            "webhookId": "a755602b-5a6f-474e-ae2e-4011a7a51d08",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT u.name, l.item_code, l.quantity, l.tipe, l.created_at FROM log_transaksi l JOIN users u ON l.user_id = u.id ORDER BY l.id DESC LIMIT 30 OFFSET 0;",
+                "options": {}
+            },
+            "id": "b782a970-ee2d-402c-a91c-651671a895db",
+            "name": "MySQL: Get History Page 1",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -3568,
+                5712
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "let text = '\ud83d\udcdc *Log Transaksi (Page 1)*\\n\\n```\\n';\ntext += 'No | Tgl   | Nama User      | Tipe | Qty | Item\\n';\ntext += '---+-------+----------------+------+-----+-------\\n';\nif ($input.all().length === 0 || !$input.all()[0].json.name) {\n  text = '\u26a0\ufe0f Belum ada transaksi.';\n} else {\n  let num = 1;\n  for (const item of $input.all()) {\n    const d = new Date(item.json.created_at);\n    const ds = `${d.getDate()}/${d.getMonth()+1}`.padEnd(5, ' ');\n    \n    let id = num.toString().padEnd(2, ' ');\n    let name = (item.json.name || '-').substring(0, 14).padEnd(14, ' ');\n    let type = (item.json.tipe || '-').substring(0, 4).padEnd(4, ' ');\n    let qty = (item.json.quantity || 0).toString().padStart(3, ' ');\n    let code = (item.json.item_code || '-').substring(0, 7).padEnd(7, ' ');\n    \n    text += `${id} | ${ds} | ${name} | ${type} | ${qty} | ${code}\\n`;\n    num++;\n  }\n  text += '```';\n}\n\nreturn [{\n  chat_id: $node[\"Normalize Payload\"].json.chat_id,\n  text: text,\n  reply_markup: {\n    inline_keyboard: [\n      [\n        { text: \"\u2b05\ufe0f Prev\", callback_data: \"admin_hist_page_0\" },\n        { text: \"Next \u27a1\ufe0f\", callback_data: \"admin_hist_page_2\" }\n      ]\n    ]\n  }\n}];"
+            },
+            "id": "5444941d-9efc-4158-aa90-9ba538df2031",
+            "name": "Format /history msg",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -3344,
+                5712
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{$json.chat_id}}",
+                "text": "={{$json.text}}",
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
+            },
+            "id": "1c1cd78b-e494-4525-8581-f61fdbdcc999",
+            "name": "Send /history Msg",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3120,
+                5712
+            ],
+            "webhookId": "6e097496-2369-41b8-a1f5-f08dc56476e0",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT u.name, su.item_code, su.quantity, su.updated_at FROM stock_users su JOIN users u ON su.user_id = u.id ORDER BY u.name ASC;",
+                "options": {}
+            },
+            "id": "9818a441-0b42-4cea-aa5a-0cb74fe718c6",
+            "name": "MySQL: Get Data for SO",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -3568,
+                5904
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "toFile",
+                "fileFormat": "xlsx",
+                "options": {
+                    "fileName": "SO_Sparepart_EDPCRB.xlsx"
+                }
+            },
+            "id": "c6380242-6436-4034-af90-11c1b8fc34d0",
+            "name": "Generate Excel",
+            "type": "n8n-nodes-base.spreadsheetFile",
+            "typeVersion": 1,
+            "position": [
+                -3344,
+                5904
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{$node['Normalize Payload'].json.chat_id}}",
+                "additionalFields": {}
+            },
+            "id": "832ea3b5-e1ca-49f1-bf5c-d8186aabbd1d",
+            "name": "Send Document /so",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3120,
+                5904
+            ],
+            "webhookId": "7c1f4ce9-5a8a-4c88-bac8-2c012d6c4a23",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            },
+            "disabled": true
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": false,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 3
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.callback_data}}",
+                                        "rightValue": "admin_add_item",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        }
+                    ]
+                },
+                "options": {
+                    "fallbackOutput": "none"
+                }
+            },
+            "id": "69a9378e-c00c-49b5-925a-17ca0234b5ae",
+            "name": "Route Callback Query",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -3568,
+                6096
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO bot_user_states (telegram_id, current_state) VALUES ('{{$node[\"Normalize Payload\"].json.telegram_id}}', 'ADMIN_ADD_ITEM') ON DUPLICATE KEY UPDATE current_state='ADMIN_ADD_ITEM';",
+                "options": {}
+            },
+            "id": "c3d5288b-1b03-478d-9c29-9952993eed71",
+            "name": "Set State: Wait Add Item",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -3344,
+                6096
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{$node[\"Normalize Payload\"].json.chat_id}}",
+                "text": "Masukkan data item baru dengan format (pisahkan dengan spasi):\n`[Item code] [Kode barang] [Name item] [Qty] [Stock minimum]`\n\nContoh:\n`SSD 311202 \"SSD SATA SAMSUNG 512 GB\" 30 5`",
+                "additionalFields": {
+                    "parse_mode": "MarkdownV2"
+                }
+            },
+            "id": "23356c0e-5e7b-4270-94b2-1a96e712f5f4",
+            "name": "Ask Add Item Info",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3120,
+                6096
+            ],
+            "webhookId": "a15ac18a-9544-477f-b4a6-944fbd164a02",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT item_code, quantity FROM stock_users WHERE user_id = (SELECT id FROM users WHERE telegram_id = '{{$node[\"Normalize Payload\"].json.telegram_id}}');",
+                "options": {}
+            },
+            "id": "e15ae722-763f-4bcb-90bb-d2bae6355bf3",
+            "name": "MySQL: Get MyStock",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -3568,
+                6480
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "let text = '\ud83c\udf92 *Barang IT di Tangan Anda*\\n\\n```\\n';\ntext += 'No | Kode Barang  | Qty \\n';\ntext += '---+--------------+-----\\n';\nif ($input.all().length === 0 || !$input.all()[0].json.item_code) {\n  text = '\u26a0\ufe0f Anda belum memegang item apa pun.';\n} else {\n  let num = 1;\n  for (const item of $input.all()) {\n    let id = num.toString().padEnd(2, ' ');\n    let code = (item.json.item_code || '-').substring(0, 12).padEnd(12, ' ');\n    let qty = (item.json.quantity || 0).toString().padStart(3, ' ');\n    \n    text += `${id} | ${code} | ${qty}\\n`;\n    num++;\n  }\n  text += '```';\n}\n\nreturn [{\n  chat_id: $node[\"Normalize Payload\"].json.chat_id,\n  text: text\n}];"
+            },
+            "id": "532ff9ae-10f9-4319-8195-b4c6096befe7",
+            "name": "Format /mystock msg",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -3344,
+                6480
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{$json.chat_id}}",
+                "text": "={{$json.text}}",
+                "additionalFields": {
+                    "parse_mode": "HTML"
+                }
+            },
+            "id": "c6c1e72b-e9b6-4b88-922d-bb7bf671e059",
+            "name": "Send /mystock Msg",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3120,
+                6480
+            ],
+            "webhookId": "0e43372e-832d-4982-ad05-bcd7defc3174",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO bot_user_states (telegram_id, current_state) VALUES ('{{$node[\"Normalize Payload\"].json.telegram_id}}', 'STAFF_ALOKASI') ON DUPLICATE KEY UPDATE current_state='STAFF_ALOKASI';",
+                "options": {}
+            },
+            "id": "82a48dc6-7cb4-4ff8-8ef3-d6c4c8a2f210",
+            "name": "MySQL: Set State Alokasi",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -3568,
+                6672
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{$node[\"Normalize Payload\"].json.chat_id}}",
+                "text": "Isi format berikut (copy dan paste):\n\nDept/Toko: \nTanggal: \nNama barang: \nQTY: \nStatus: \nKeterangan/Kerusakan: \nNama Penerima barang: \nNIK Penerima Barang: ",
+                "additionalFields": {}
+            },
+            "id": "4d651874-f450-49e3-8f63-9f7b95140f9d",
+            "name": "Send Format Alokasi Msg",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3344,
+                6672
+            ],
+            "webhookId": "2c2b0ed9-4362-41cb-97de-899292828509",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO bot_user_states (telegram_id, current_state) VALUES ('{{$node[\"Normalize Payload\"].json.telegram_id}}', 'STAFF_AMBIL_ITEM_WAIT') ON DUPLICATE KEY UPDATE current_state='STAFF_AMBIL_ITEM_WAIT';",
+                "options": {}
+            },
+            "id": "4acd404a-655f-45af-8425-006a1a90b19d",
+            "name": "Set State: Wait Ambil",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -3344,
+                6864
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{$node[\"Normalize Payload\"].json.chat_id}}",
+                "text": "Item mana yang ingin anda ambil? Ketik saja item code nya. Misal: MOUSE",
+                "additionalFields": {}
+            },
+            "id": "ce352778-5dda-4d01-83ef-1e74ab3c722a",
+            "name": "Ask Ambil Item Code",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3120,
+                6864
+            ],
+            "webhookId": "e95755b7-d38b-4e43-8ac5-8a8cb6c1a341",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO bot_user_states (telegram_id, current_state) VALUES ('{{$node[\"Normalize Payload\"].json.telegram_id}}', 'STAFF_RETURN_ITEM_WAIT') ON DUPLICATE KEY UPDATE current_state='STAFF_RETURN_ITEM_WAIT';",
+                "options": {}
+            },
+            "id": "3b3831f9-c5d0-435c-beae-2257a6d88ee8",
+            "name": "Set State: Wait Return",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -3344,
+                7056
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{$node[\"Normalize Payload\"].json.chat_id}}",
+                "text": "Item mana yang ingin anda kembalikan? Ketik saja item code nya. Misal: SSD",
+                "additionalFields": {}
+            },
+            "id": "1a4725c9-8575-4f8c-89ac-a20f7f766935",
+            "name": "Ask Return Item Code",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3120,
+                7056
+            ],
+            "webhookId": "95e8b856-2901-4ef0-a2c6-7e87b7b5ad81",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": false,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 3
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/stock",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": false,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 3
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/mystock",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": false,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 3
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/alokasi",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": false,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 3
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/cancel",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": false,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 3
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.updateType}}",
+                                        "rightValue": "callback_query",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "777c76b4-48b6-4529-a396-cc20b6d69357",
+            "name": "Route Command/Callback1",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -3792,
+                6544
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT item_code, quantity FROM stock_gudang LIMIT 30 OFFSET 0;",
+                "options": {}
+            },
+            "id": "75dcd57c-2161-48a0-8d90-225265263747",
+            "name": "MySQL: Get Stock Page ",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -3568,
+                6288
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "let text = '\ud83d\udce6 *Daftar Stok Gudang (Page 1)*\\n\\n```\\n';\ntext += 'No | Kode Barang  | Qty\\n';\ntext += '---+--------------+-----\\n';\nif ($input.all().length === 0 || !$input.all()[0].json.item_code) {\n  text = '\u26a0\ufe0f Gudang kosong.';\n} else {\n  let num = 1;\n  for (const item of $input.all()) {\n    let id = num.toString().padEnd(2, ' ');\n    let code = (item.json.item_code || '-').substring(0, 12).padEnd(12, ' ');\n    let qty = (item.json.quantity || 0).toString().padStart(3, ' ');\n    \n    text += `${id} | ${code} | ${qty}\\n`;\n    num++;\n  }\n  text += '```';\n}\n\nreturn [{\n  chat_id: $node[\"Normalize Payload\"].json.chat_id,\n  text: text,\n  reply_markup: {\n    inline_keyboard: [\n      [\n        { text: \"\u2b05\ufe0f Prev\", callback_data: \"staff_stock_page_0\" },\n        { text: \"Next \u27a1\ufe0f\", callback_data: \"staff_stock_page_2\" }\n      ],\n      [\n        { text: \"\u2795 Ambil Item\", callback_data: \"staff_ambil_item\" },\n        { text: \"\u21a9\ufe0f Return Item\", callback_data: \"staff_return_item\" },\n        { text: \"\ud83c\udf92 My Stock\", callback_data: \"staff_cmd_mystock\" }\n      ]\n    ]\n  }\n}];"
+            },
+            "id": "031ba4d8-fd4d-4e1b-af13-7fd7f4a19f88",
+            "name": "Format /stock msg1",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -3344,
+                6288
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{$json.chat_id}}",
+                "text": "={{$json.text}}",
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
+            },
+            "id": "cf8eb893-dd91-4461-b575-ecae3d71d8c5",
+            "name": "Send /stock Msg1",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3120,
+                6288
+            ],
+            "webhookId": "4f7d8807-58af-4557-a945-c4c64efad4f3",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": false,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 3
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.callback_data}}",
+                                        "rightValue": "staff_ambil_item",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": false,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 3
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.callback_data}}",
+                                        "rightValue": "staff_return_item",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "dad5ab1b-39f1-4e68-a5d9-165d9f4da761",
+            "name": "Route Callback Query1",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -3568,
+                6864
+            ]
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.current_state}}",
+                                        "rightValue": "ADMIN_ADD_ITEM",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    },
+                                    {
+                                        "id": "2",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "notStartsWith"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.current_state}}",
+                                        "rightValue": "STAFF_AMBIL_ITEM_WAIT",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    },
+                                    {
+                                        "id": "2",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "notStartsWith"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.current_state}}",
+                                        "rightValue": "STAFF_RETURN_ITEM_WAIT",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    },
+                                    {
+                                        "id": "2",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "notStartsWith"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.current_state}}",
+                                        "rightValue": "STAFF_ALOKASI",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    },
+                                    {
+                                        "id": "2",
+                                        "leftValue": "={{$node[\"Normalize Payload\"].json.text}}",
+                                        "rightValue": "/",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "notStartsWith"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "089a6eef-c024-4cc8-80ff-2c3538602097",
+            "name": "Route by State",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -3792,
+                4912
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const text = $node[\"Normalize Payload\"].json.text;\nconst parts = text.split(/\\s+/);\nif (parts.length < 5) {\n  return [{ error: true, msg: 'Format salah. Pastikan memisahkan data dengan spasi sesuai contoh.' }];\n}\n\nreturn [{\n  error: false,\n  item_code: parts[0],\n  kode_barang: parts[1],\n  name_item: parts.slice(2, parts.length - 2).join(' '),\n  qty: parts[parts.length - 2],\n  min_threshold: parts[parts.length - 1]\n}];"
+            },
+            "id": "f20cc02c-7d58-4509-8e84-2aed0e5257c7",
+            "name": "Parse Add Item Data",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -3568,
+                4944
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "loose",
+                        "version": 1
+                    },
+                    "conditions": [
+                        {
+                            "id": "1",
+                            "leftValue": "={{$json.error}}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {
+                    "looseTypeValidation": true
+                }
+            },
+            "id": "8dd0558f-c21a-4769-9d6b-59fc55694e42",
+            "name": "If Parse Error",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                -3344,
+                4944
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{$node[\"Normalize Payload\"].json.chat_id}}",
+                "text": "={{$json.msg}}",
+                "additionalFields": {}
+            },
+            "id": "2f69d6d3-8173-44fe-b290-e415f04f39ae",
+            "name": "Send Parse Error",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3120,
+                4848
+            ],
+            "webhookId": "55ccc122-afcf-44a3-ad6c-e07cbf2cf4fd",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{$node[\"Normalize Payload\"].json.chat_id}}",
+                "text": "=Apakah data yang dimasukkan sudah sesuai?\nItem Code: {{$json.item_code}}\nKode Barang: {{$json.kode_barang}}\nNama Item: {{$json.name_item}}\nQty: {{$json.qty}}\nMin Threshold: {{$json.min_threshold}}",
+                "replyMarkup": "inlineKeyboard",
+                "additionalFields": {}
+            },
+            "id": "ec180322-4f80-44e8-8f0c-f83c05278225",
+            "name": "Confirm Add Item",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3120,
+                5040
+            ],
+            "webhookId": "dc521fcc-a27b-4e81-8ec0-16b881863492",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE bot_user_states SET state_data = '{{\n  JSON.stringify({\n    item_code: $json.item_code,\n    kode_barang: $json.kode_barang,\n    name_item: $json.name_item,\n    qty: $json.qty,\n    min_threshold: $json.min_threshold\n  })\n}}' WHERE telegram_id = '{{$node[\"Normalize Payload\"].json.telegram_id}}';",
+                "options": {}
+            },
+            "id": "d2c9d907-f852-4f85-92b2-ee4431ecfa4e",
+            "name": "MySQL: Save Data to State",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -2896,
+                5040
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{$node[\"Normalize Payload\"].json.chat_id}}",
+                "text": "=Proses alokasi berhasil dibuat. Surat jalan sedang diproses...",
+                "additionalFields": {}
+            },
+            "id": "ead5e1a7-3b1a-4e09-88b8-b40e0b765da9",
+            "name": "Dummy Route 4: Alokasi Start",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -3568,
+                5136
+            ],
+            "webhookId": "c04bdfc0-bfc2-4b89-9e85-40894295737a",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "DELETE FROM bot_user_states WHERE telegram_id = '{{$node[\"Normalize Payload\"].json.telegram_id}}';",
+                "options": {}
+            },
+            "id": "124731ca-798d-4ae2-bba9-38d3f787cbef",
+            "name": "MySQL: Reset State",
+            "type": "n8n-nodes-base.mySql",
+            "typeVersion": 2,
+            "position": [
+                -2900,
+                5190
+            ],
+            "credentials": {
+                "mySql": {
+                    "id": "18YytLRcaee9SjCu",
+                    "name": "Inventory DB v.2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{$node['Normalize Payload'].json.chat_id}}",
+                "text": "\ud83d\udeab Operasi dibatalkan. State aktif telah direset.\nGunakan command seperti /stock, /users, dll untuk memulai.",
+                "additionalFields": {}
+            },
+            "id": "b7291055-8af2-4de0-9fd0-31b3672871f7",
+            "name": "Send Cancel Msg",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1,
+            "position": [
+                -2680,
+                5190
+            ],
+            "webhookId": "06bac8ba-7ad4-4052-bde0-3c071ef10ce2",
+            "credentials": {
+                "telegramApi": {
+                    "id": "XGjtsjR1LeDpxsen",
+                    "name": "Jembot Bot"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Normalize Payload": {
+            "main": [
+                [
+                    {
+                        "node": "Get User & State",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get User & State": {
+            "main": [
+                [
+                    {
+                        "node": "If Active User",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "If Active User": {
+            "main": [
+                [
+                    {
+                        "node": "Route by State / Role",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Send Auth Failed1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route by State / Role": {
+            "main": [
+                [
+                    {
+                        "node": "Trigger Setup - Route 1: State Handler",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Trigger Setup - Route 2: Admin Flow",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Trigger Setup - Route 3: Staff Flow",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Trigger Setup - Route 1: State Handler": {
+            "main": [
+                [
+                    {
+                        "node": "Route by State",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Trigger Setup - Route 2: Admin Flow": {
+            "main": [
+                [
+                    {
+                        "node": "Route Command/Callback",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Trigger Setup - Route 3: Staff Flow": {
+            "main": [
+                [
+                    {
+                        "node": "Route Command/Callback1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Telegram Trigger1": {
+            "main": [
+                [
+                    {
+                        "node": "Normalize Payload",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route Command/Callback": {
+            "main": [
+                [
+                    {
+                        "node": "MySQL: Get Stock Page 1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "MySQL: Get Users Page 1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "MySQL: Get History Page 1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "MySQL: Get Data for SO",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "MySQL: Reset State",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Route Callback Query",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "MySQL: Get Stock Page 1": {
+            "main": [
+                [
+                    {
+                        "node": "Format /stock msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format /stock msg": {
+            "main": [
+                [
+                    {
+                        "node": "Send /stock Msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "MySQL: Get Users Page 1": {
+            "main": [
+                [
+                    {
+                        "node": "Format /users msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format /users msg": {
+            "main": [
+                [
+                    {
+                        "node": "Send /users Msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "MySQL: Get History Page 1": {
+            "main": [
+                [
+                    {
+                        "node": "Format /history msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format /history msg": {
+            "main": [
+                [
+                    {
+                        "node": "Send /history Msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "MySQL: Get Data for SO": {
+            "main": [
+                [
+                    {
+                        "node": "Generate Excel",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Generate Excel": {
+            "main": [
+                [
+                    {
+                        "node": "Send Document /so",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route Callback Query": {
+            "main": [
+                [
+                    {
+                        "node": "Set State: Wait Add Item",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set State: Wait Add Item": {
+            "main": [
+                [
+                    {
+                        "node": "Ask Add Item Info",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "MySQL: Get MyStock": {
+            "main": [
+                [
+                    {
+                        "node": "Format /mystock msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format /mystock msg": {
+            "main": [
+                [
+                    {
+                        "node": "Send /mystock Msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "MySQL: Set State Alokasi": {
+            "main": [
+                [
+                    {
+                        "node": "Send Format Alokasi Msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set State: Wait Ambil": {
+            "main": [
+                [
+                    {
+                        "node": "Ask Ambil Item Code",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set State: Wait Return": {
+            "main": [
+                [
+                    {
+                        "node": "Ask Return Item Code",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route Command/Callback1": {
+            "main": [
+                [
+                    {
+                        "node": "MySQL: Get Stock Page ",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "MySQL: Get MyStock",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "MySQL: Set State Alokasi",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "MySQL: Reset State",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Route Callback Query1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "MySQL: Get Stock Page ": {
+            "main": [
+                [
+                    {
+                        "node": "Format /stock msg1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format /stock msg1": {
+            "main": [
+                [
+                    {
+                        "node": "Send /stock Msg1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route Callback Query1": {
+            "main": [
+                [
+                    {
+                        "node": "Set State: Wait Ambil",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Set State: Wait Return",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route by State": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Add Item Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [],
+                [],
+                [
+                    {
+                        "node": "Dummy Route 4: Alokasi Start",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Add Item Data": {
+            "main": [
+                [
+                    {
+                        "node": "If Parse Error",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "If Parse Error": {
+            "main": [
+                [
+                    {
+                        "node": "Send Parse Error",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Confirm Add Item",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Confirm Add Item": {
+            "main": [
+                [
+                    {
+                        "node": "MySQL: Save Data to State",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "MySQL: Reset State": {
+            "main": [
+                [
+                    {
+                        "node": "Send Cancel Msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "meta": {
+        "templateCredsSetupCompleted": true,
+        "instanceId": "cb09c41ae337aa3d0c5f4b2ceeea66db5dac23bb7b83c1a997bc902a5109156a"
+    }
+}
